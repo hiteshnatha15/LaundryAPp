@@ -6,6 +6,7 @@ const UserSchema = new mongoose.Schema({
   mobile: { type: String, unique: true },
   otp: String,
   otpExpiry: Date,
+  profileImage: String,
 });
 
 module.exports = mongoose.model("User", UserSchema);

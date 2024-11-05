@@ -1,5 +1,3 @@
-const UserSignup = require("../models/userSignupModel");
-const User = require("../models/userModel");
 const generateOtp = require("../utils/generateOtp");
 const otpService = require("../services/otpService");
 const mailOtpService = require("../services/mailOtpService");
@@ -7,14 +5,12 @@ const jwt = require("jsonwebtoken");
 const createUpload = require("../services/uploadImageService");
 const { deleteImageFromS3 } = require("../services/deleteImageService");
 
-exports.createUser = async (req, res) => {
+exports.createDeliveryPartner = async (req, res) => {
   const { name, email, mobile } = req.body;
 
   // Check if all fields are present
   if (!name || !email || !mobile) {
-    return res
-      .status(400)
-      .json({ message: "All fields are required", success: false });
+    return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
@@ -24,10 +20,9 @@ exports.createUser = async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists with this email or mobile",
-        success: false,
-      });
+      return res
+        .status(400)
+        .json({ message: "User already exists with this email or mobile" });
     }
 
     // Generate OTPs for mobile and email separately
@@ -63,20 +58,15 @@ exports.createUser = async (req, res) => {
 
     // Handle OTP sending failure
     if (!otpSent) {
-      return res
-        .status(500)
-        .json({ message: "Failed to send OTP to mobile", success: false });
+      return res.status(500).json({ message: "Failed to send OTP to mobile" });
     }
     if (!otpEmailSent) {
-      return res
-        .status(500)
-        .json({ message: "Failed to send OTP to email", success: false });
+      return res.status(500).json({ message: "Failed to send OTP to email" });
     }
 
     // If everything is successful, return success response
     res.status(201).json({
       message: "User created successfully, OTP sent to mobile and email",
-      success: true,
       user: {
         name,
         email,
@@ -86,9 +76,7 @@ exports.createUser = async (req, res) => {
   } catch (error) {
     console.error("Error creating user:", error);
     // Handle server error
-    res
-      .status(500)
-      .json({ message: "Server error", error: error.message, success: false });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -97,9 +85,7 @@ exports.verifyUserSignup = async (req, res) => {
 
   // Check if all fields are present
   if (!email || !mobile || !mobileOtp || !emailOtp) {
-    return res
-      .status(400)
-      .json({ message: "All fields are required", success: false });
+    return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
@@ -110,35 +96,25 @@ exports.verifyUserSignup = async (req, res) => {
 
     // If user not found
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Check if mobile OTP matches and has not expired
     if (user.mobileOtp !== mobileOtp) {
-      return res
-        .status(400)
-        .json({ message: "Invalid mobile OTP", success: false });
+      return res.status(400).json({ message: "Invalid mobile OTP" });
     }
 
     if (user.mobileOtpExpiry < Date.now()) {
-      return res
-        .status(400)
-        .json({ message: "Mobile OTP has expired", success: false });
+      return res.status(400).json({ message: "Mobile OTP has expired" });
     }
 
     // Check if email OTP matches and has not expired
     if (user.emailOtp !== emailOtp) {
-      return res
-        .status(400)
-        .json({ message: "Invalid email OTP", success: false });
+      return res.status(400).json({ message: "Invalid email OTP" });
     }
 
     if (user.emailOtpExpiry < Date.now()) {
-      return res
-        .status(400)
-        .json({ message: "Email OTP has expired", success: false });
+      return res.status(400).json({ message: "Email OTP has expired" });
     }
 
     await user.save();
@@ -166,7 +142,6 @@ exports.verifyUserSignup = async (req, res) => {
     // Return success response with the token
     res.status(200).json({
       message: "User successfully verified and added to the system",
-      success: true,
       user: {
         name: newUser.name,
         email: newUser.email,
@@ -176,9 +151,7 @@ exports.verifyUserSignup = async (req, res) => {
     });
   } catch (error) {
     console.error("Error verifying user:", error);
-    res
-      .status(500)
-      .json({ message: "Server error", error: error.message, success: false });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -187,9 +160,7 @@ exports.loginUser = async (req, res) => {
 
   // Check if all fields are present
   if (!email && !mobile) {
-    return res
-      .status(400)
-      .json({ message: "Email or mobile is required", success: false });
+    return res.status(400).json({ message: "Email or mobile is required" });
   }
 
   try {
@@ -200,9 +171,7 @@ exports.loginUser = async (req, res) => {
 
     // If user not found
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Generate OTP
@@ -218,9 +187,7 @@ exports.loginUser = async (req, res) => {
 
     // Handle OTP sending failure
     if (!otpSent) {
-      return res
-        .status(500)
-        .json({ message: "Failed to send OTP", success: false });
+      return res.status(500).json({ message: "Failed to send OTP" });
     }
 
     // Save OTP and its expiry to the user
@@ -231,7 +198,6 @@ exports.loginUser = async (req, res) => {
     // Return success response
     res.status(200).json({
       message: "OTP sent successfully",
-      success: true,
       user: {
         name: user.name,
         email: user.email,
@@ -240,9 +206,7 @@ exports.loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Error logging in user:", error);
-    res
-      .status(500)
-      .json({ message: "Server error", error: error.message, success: false });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -251,10 +215,9 @@ exports.verifyUserLogin = async (req, res) => {
 
   // Check if all fields are present
   if (!otp || (!email && !mobile)) {
-    return res.status(400).json({
-      message: "OTP and either email or mobile are required",
-      success: false,
-    });
+    return res
+      .status(400)
+      .json({ message: "OTP and either email or mobile are required" });
   }
 
   try {
@@ -265,20 +228,16 @@ exports.verifyUserLogin = async (req, res) => {
 
     // If user not found
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Check if OTP matches and has not expired
     if (user.otp !== otp) {
-      return res.status(400).json({ message: "Invalid OTP", success: false });
+      return res.status(400).json({ message: "Invalid OTP" });
     }
 
     if (user.otpExpiry < Date.now()) {
-      return res
-        .status(400)
-        .json({ message: "OTP has expired", success: false });
+      return res.status(400).json({ message: "OTP has expired" });
     }
 
     // Generate JWT token
@@ -294,7 +253,6 @@ exports.verifyUserLogin = async (req, res) => {
     // Return success response with the token
     res.status(200).json({
       message: "User successfully verified and logged in",
-      success: true,
       user: {
         name: user.name,
         email: user.email,
@@ -304,9 +262,7 @@ exports.verifyUserLogin = async (req, res) => {
     });
   } catch (error) {
     console.error("Error verifying login:", error);
-    res
-      .status(500)
-      .json({ message: "Server error", error: error.message, success: false });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -319,19 +275,15 @@ exports.getUserProfile = async (req, res) => {
     }
     return res.status(200).json({
       message: "User profile fetched successfully",
-      success: true,
       user: {
         name: user.name,
         email: user.email,
         mobile: user.mobile,
-        profileImage: user.profileImage,
       },
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    res
-      .status(500)
-      .json({ message: "Server error", error: error.message, success: false });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -340,18 +292,14 @@ exports.updateUserProfile = async (req, res) => {
 
   // Check if at least one field is present
   if (!name && !email && !mobile) {
-    return res
-      .status(400)
-      .json({ message: "At least one field is required", success: false });
+    return res.status(400).json({ message: "At least one field is required" });
   }
 
   try {
     // Find the user by ID
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found", success: false });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Update user data only if provided
@@ -364,7 +312,6 @@ exports.updateUserProfile = async (req, res) => {
 
     return res.status(200).json({
       message: "User profile updated successfully",
-      success: true,
       user: {
         name: user.name,
         email: user.email,
@@ -373,9 +320,7 @@ exports.updateUserProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating user profile:", error);
-    res
-      .status(500)
-      .json({ message: "Server error", error: error.message, success: false });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -386,22 +331,18 @@ exports.uploadUserImage = (req, res) => {
       console.error(`Upload error: ${err.message}`);
       return res
         .status(400)
-        .json({ message: `File upload error: ${err.message}`, success: false });
+        .json({ message: `File upload error: ${err.message}` });
     }
 
     if (!req.file) {
-      return res
-        .status(400)
-        .json({ message: "No image file uploaded!", success: false });
+      return res.status(400).json({ message: "No image file uploaded!" });
     }
 
     try {
       const userId = req.user.id; // Assume user ID is available in req.user
       const user = await User.findById(userId);
       if (!user) {
-        return res
-          .status(404)
-          .json({ message: "User not found!", success: false });
+        return res.status(404).json({ message: "User not found!" });
       }
 
       // Delete the existing image from S3 if it exists
@@ -418,14 +359,12 @@ exports.uploadUserImage = (req, res) => {
       res.status(200).json({
         message: "Image uploaded successfully!",
         user: user, // Return the updated user data
-        success: true,
       });
     } catch (error) {
       console.error(`Error updating user image: ${error.message}`);
       res.status(500).json({
         message: "Error updating user image in database",
         error: error.message,
-        success: false,
       });
     }
   });
@@ -438,7 +377,7 @@ exports.deleteUserImage = async (req, res) => {
   if (!imageUrl || !userId) {
     return res
       .status(400)
-      .json({ message: "Image URL and User ID are required.", success: false });
+      .json({ message: "Image URL and User ID are required." });
   }
 
   try {
@@ -448,9 +387,7 @@ exports.deleteUserImage = async (req, res) => {
     // Find the user by ID and update their images array
     const user = await User.findById(userId);
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User not found.", success: false });
+      return res.status(404).json({ message: "User not found." });
     }
 
     // Remove the image URL from the user's images array
@@ -460,14 +397,12 @@ exports.deleteUserImage = async (req, res) => {
     res.status(200).json({
       message: "Image deleted successfully.",
       user: user, // Return the updated user data
-      success: true,
     });
   } catch (error) {
     console.error(`Error deleting image: ${error.message}`);
     res.status(500).json({
       message: "Error deleting image from S3 or updating user record.",
       error: error.message,
-      success: false,
     });
   }
 };

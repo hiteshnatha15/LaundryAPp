@@ -13,7 +13,9 @@ exports.createPartner = async (req, res) => {
 
   // Check if all fields are present
   if (!name || !email || !mobile) {
-    return res.status(400).json({ message: "All fields are required" });
+    return res
+      .status(400)
+      .json({ message: "All fields are required", success: false });
   }
 
   try {
@@ -23,9 +25,10 @@ exports.createPartner = async (req, res) => {
     });
 
     if (existingPartner) {
-      return res
-        .status(400)
-        .json({ message: "Partner already exists with this email or mobile" });
+      return res.status(400).json({
+        message: "Partner already exists with this email or mobile",
+        success: false,
+      });
     }
 
     // Generate OTPs for mobile and email separately
@@ -61,10 +64,14 @@ exports.createPartner = async (req, res) => {
 
     // Handle OTP sending failure
     if (!otpSent) {
-      return res.status(500).json({ message: "Failed to send OTP to mobile" });
+      return res
+        .status(500)
+        .json({ message: "Failed to send OTP to mobile", success: false });
     }
     if (!otpEmailSent) {
-      return res.status(500).json({ message: "Failed to send OTP to email" });
+      return res
+        .status(500)
+        .json({ message: "Failed to send OTP to email", success: false });
     }
 
     // If everything is successful, return success response
@@ -75,11 +82,14 @@ exports.createPartner = async (req, res) => {
         email,
         mobile,
       },
+      success: true,
     });
   } catch (error) {
     console.error("Error creating partner:", error);
     // Handle server error
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -88,7 +98,9 @@ exports.verifyPartnerSignup = async (req, res) => {
 
   // Check if all fields are present
   if (!email || !mobile || !mobileOtp || !emailOtp) {
-    return res.status(400).json({ message: "All fields are required" });
+    return res
+      .status(400)
+      .json({ message: "All fields are required", success: false });
   }
 
   try {
@@ -99,25 +111,35 @@ exports.verifyPartnerSignup = async (req, res) => {
 
     // If user not found
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Check if mobile OTP matches and has not expired
     if (partner.mobileOtp !== mobileOtp) {
-      return res.status(400).json({ message: "Invalid mobile OTP" });
+      return res
+        .status(400)
+        .json({ message: "Invalid mobile OTP", success: false });
     }
 
     if (partner.mobileOtpExpiry < Date.now()) {
-      return res.status(400).json({ message: "Mobile OTP has expired" });
+      return res
+        .status(400)
+        .json({ message: "Mobile OTP has expired", success: false });
     }
 
     // Check if email OTP matches and has not expired
     if (partner.emailOtp !== emailOtp) {
-      return res.status(400).json({ message: "Invalid email OTP" });
+      return res
+        .status(400)
+        .json({ message: "Invalid email OTP", success: false });
     }
 
     if (partner.emailOtpExpiry < Date.now()) {
-      return res.status(400).json({ message: "Email OTP has expired" });
+      return res
+        .status(400)
+        .json({ message: "Email OTP has expired", success: false });
     }
 
     await partner.save();
@@ -150,11 +172,14 @@ exports.verifyPartnerSignup = async (req, res) => {
         email: partner.email,
         mobile: partner.mobile,
       },
+      success: true,
       token, // Include the JWT token in the response
     });
   } catch (error) {
     console.error("Error verifying partner:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -163,7 +188,9 @@ exports.loginPartner = async (req, res) => {
 
   // Check if all fields are present
   if (!email && !mobile) {
-    return res.status(400).json({ message: "Email or mobile is required" });
+    return res
+      .status(400)
+      .json({ message: "Email or mobile is required", success: false });
   }
 
   try {
@@ -174,7 +201,9 @@ exports.loginPartner = async (req, res) => {
 
     // If user not found
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Generate OTP
@@ -190,7 +219,9 @@ exports.loginPartner = async (req, res) => {
 
     // Handle OTP sending failure
     if (!otpSent) {
-      return res.status(500).json({ message: "Failed to send OTP" });
+      return res
+        .status(500)
+        .json({ message: "Failed to send OTP", success: false });
     }
 
     // Save OTP and its expiry to the user
@@ -206,10 +237,13 @@ exports.loginPartner = async (req, res) => {
         email: partner.email,
         mobile: partner.mobile,
       },
+      success: true,
     });
   } catch (error) {
     console.error("Error logging in partner:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -218,9 +252,10 @@ exports.verifyPartnerLogin = async (req, res) => {
 
   // Check if all fields are present
   if (!otp || (!email && !mobile)) {
-    return res
-      .status(400)
-      .json({ message: "OTP and either email or mobile are required" });
+    return res.status(400).json({
+      message: "OTP and either email or mobile are required",
+      success: false,
+    });
   }
 
   try {
@@ -231,16 +266,20 @@ exports.verifyPartnerLogin = async (req, res) => {
 
     // If user not found
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Check if OTP matches and has not expired
     if (partner.otp !== otp) {
-      return res.status(400).json({ message: "Invalid OTP" });
+      return res.status(400).json({ message: "Invalid OTP", success: false });
     }
 
     if (partner.otpExpiry < Date.now()) {
-      return res.status(400).json({ message: "OTP has expired" });
+      return res
+        .status(400)
+        .json({ message: "OTP has expired", success: false });
     }
 
     // Generate JWT token
@@ -261,11 +300,14 @@ exports.verifyPartnerLogin = async (req, res) => {
         email: partner.email,
         mobile: partner.mobile,
       },
+      success: true,
       token, // Include the JWT token in the response
     });
   } catch (error) {
     console.error("Error verifying login:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -291,10 +333,13 @@ exports.getPartnerProfile = async (req, res) => {
         logo: partner.logo,
         images: partner.images,
       },
+      success: true,
     });
   } catch (error) {
     console.error("Error fetching partner profile:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -303,14 +348,18 @@ exports.updatePartnerProfile = async (req, res) => {
 
   // Check if at least one field is present
   if (!name && !email && !mobile) {
-    return res.status(400).json({ message: "At least one field is required" });
+    return res
+      .status(400)
+      .json({ message: "At least one field is required", success: false });
   }
 
   try {
     // Find the user by ID
     const partner = await Partner.findById(req.partner.id);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Update user data only if provided
@@ -328,10 +377,13 @@ exports.updatePartnerProfile = async (req, res) => {
         email: partner.email,
         mobile: partner.mobile,
       },
+      success: true,
     });
   } catch (error) {
     console.error("Error updating partner profile:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 // Add a new category
@@ -342,7 +394,9 @@ exports.addCategory = async (req, res) => {
   try {
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Check for duplicate category name
@@ -350,16 +404,17 @@ exports.addCategory = async (req, res) => {
       (cat) => cat.name === category.name
     );
     if (duplicateCategory) {
-      return res
-        .status(400)
-        .json({ message: "Category with this name already exists" });
+      return res.status(400).json({
+        message: "Category with this name already exists",
+        success: false,
+      });
     }
 
     partner.categories.push(category); // Add new category to the partner's categories array
     await partner.save();
-    res.status(201).json(partner.categories);
+    res.status(201).json({ categories: partner.categories, success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message, success: false });
   }
 };
 
@@ -370,11 +425,13 @@ exports.getCategories = async (req, res) => {
   try {
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
-    res.status(200).json(partner.categories);
+    res.status(200).json({ categories: partner.categories, success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message, success: false });
   }
 };
 
@@ -386,13 +443,17 @@ exports.updateCategory = async (req, res) => {
   const { category: newCategoryData } = req.body;
 
   if (!newCategoryData) {
-    return res.status(400).json({ message: "Category data is required" });
+    return res
+      .status(400)
+      .json({ message: "Category data is required", success: false });
   }
 
   try {
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Find the index of the category
@@ -400,7 +461,9 @@ exports.updateCategory = async (req, res) => {
       (cat) => cat._id.toString() === categoryId
     );
     if (categoryIndex === -1) {
-      return res.status(404).json({ message: "Category not found" });
+      return res
+        .status(404)
+        .json({ message: "Category not found", success: false });
     }
 
     // Update the category data
@@ -413,10 +476,12 @@ exports.updateCategory = async (req, res) => {
     await partner.save();
 
     // Return the updated category
-    res.status(200).json(partner.categories[categoryIndex]);
+    res
+      .status(200)
+      .json({ category: partner.categories[categoryIndex], success: true });
   } catch (error) {
     console.error("Error updating category: ", error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message, success: false });
   }
 };
 
@@ -428,7 +493,9 @@ exports.deleteCategory = async (req, res) => {
   try {
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Remove category by categoryId
@@ -436,9 +503,9 @@ exports.deleteCategory = async (req, res) => {
       (cat) => cat._id.toString() !== categoryId
     );
     await partner.save();
-    res.status(200).json(partner.categories);
+    res.status(200).json({ categories: partner.categories, success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message, success: false });
   }
 };
 
@@ -459,6 +526,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
     if (!isBankDetailsProvided && !isUpiProvided && !isPhonePeProvided) {
       return res.status(400).json({
         message: "Please provide either bank account details, UPI, or PhonePe",
+        success: false,
       });
     }
 
@@ -468,6 +536,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
         return res.status(400).json({
           message:
             "Please provide complete bank account details: account holder name, account number, and IFSC code",
+          success: false,
         });
       }
 
@@ -477,6 +546,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
         return res.status(400).json({
           message:
             "Invalid account number. It should be between 9 and 18 digits long.",
+          success: false,
         });
       }
 
@@ -486,6 +556,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
         return res.status(400).json({
           message:
             "Invalid IFSC code. It should follow the format: 4 letters followed by 0 and 6 alphanumeric characters.",
+          success: false,
         });
       }
     }
@@ -497,6 +568,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
         return res.status(400).json({
           message:
             "Invalid UPI ID. Please provide a valid UPI ID in the format: yourname@bank.",
+          success: false,
         });
       }
     }
@@ -508,6 +580,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
         return res.status(400).json({
           message:
             "Invalid PhonePe number. Please provide a valid 10-digit mobile number.",
+          success: false,
         });
       }
     }
@@ -515,7 +588,9 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
     // Find the partner by ID
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Update the payment details based on the provided information
@@ -531,6 +606,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
     await partner.save();
     res.status(200).json({
       message: "Bank details added/updated successfully",
+      success: true,
       paymentDetails: partner.paymentDetails,
     });
   } catch (error) {
@@ -541,6 +617,7 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
       return res.status(400).json({
         message: "Validation error",
         error: error.errors,
+        success: false,
       });
     }
 
@@ -548,11 +625,14 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
     if (error.name === "MongoNetworkError") {
       return res.status(503).json({
         message: "Database connection error. Please try again later.",
+        success: false,
       });
     }
 
     // General error response
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -574,13 +654,17 @@ exports.addServicesAndLocation = async (req, res) => {
     !operationHours ||
     !location
   ) {
-    return res.status(400).json({ message: "All fields are required" });
+    return res
+      .status(400)
+      .json({ message: "All fields are required", success: false });
   }
 
   try {
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     partner.laundryName = laundryName;
@@ -602,6 +686,7 @@ exports.addServicesAndLocation = async (req, res) => {
     await partner.save();
     res.status(200).json({
       message: "Services and location added successfully",
+      success: true,
       laundryName: partner.laundryName,
       expressServices: partner.expressServices,
       deliveryServices: partner.deliveryServices,
@@ -610,7 +695,9 @@ exports.addServicesAndLocation = async (req, res) => {
     });
   } catch (error) {
     console.error("Error adding services and location:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -627,7 +714,9 @@ exports.updateServicesAndLocation = async (req, res) => {
   try {
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
     // Update only the provided fields
@@ -650,6 +739,7 @@ exports.updateServicesAndLocation = async (req, res) => {
     await partner.save();
     res.status(200).json({
       message: "Services and location updated successfully",
+      success: true,
       laundryName: partner.laundryName,
       expressServices: partner.expressServices,
       deliveryServices: partner.deliveryServices,
@@ -658,7 +748,9 @@ exports.updateServicesAndLocation = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating services and location:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -671,7 +763,9 @@ exports.uploadPartnerLogo = (req, res) => {
       return res.status(400).json({ message: err.message });
     }
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded!" });
+      return res
+        .status(400)
+        .json({ message: "No file uploaded!", success: false });
     }
 
     try {
@@ -680,7 +774,9 @@ exports.uploadPartnerLogo = (req, res) => {
       const partner = await Partner.findById(partnerId); // Fetch the partner from the database
 
       if (!partner) {
-        return res.status(404).json({ message: "Partner not found!" });
+        return res
+          .status(404)
+          .json({ message: "Partner not found!", success: false });
       }
 
       // Check if the partner has an existing logo and delete it from S3
@@ -696,11 +792,13 @@ exports.uploadPartnerLogo = (req, res) => {
       // Successful upload response
       res.status(200).json({
         message: "File uploaded and partner logo updated successfully!",
+        success: true,
         partner: partner, // Return the updated partner data
       });
     } catch (error) {
       res.status(500).json({
         message: "Error updating partner logo in database",
+        success: false,
         error: error.message,
       });
     }
@@ -714,18 +812,22 @@ exports.uploadImages = (req, res) => {
       console.error(`Upload error: ${err.message}`);
       return res
         .status(400)
-        .json({ message: `File upload error: ${err.message}` });
+        .json({ message: `File upload error: ${err.message}`, success: false });
     }
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: "No image files uploaded!" });
+      return res
+        .status(400)
+        .json({ message: "No image files uploaded!", success: false });
     }
 
     try {
       const partnerId = req.partner.id; // Assume partner ID is available in req.partner
       const partner = await Partner.findById(partnerId);
       if (!partner) {
-        return res.status(404).json({ message: "Partner not found!" });
+        return res
+          .status(404)
+          .json({ message: "Partner not found!", success: false });
       }
 
       // Update the images array with the new image URLs
@@ -736,12 +838,14 @@ exports.uploadImages = (req, res) => {
       // Successful upload response
       res.status(200).json({
         message: "Images uploaded successfully!",
+        success: true,
         partner: partner, // Return the updated partner data
       });
     } catch (error) {
       console.error(`Error updating partner images: ${error.message}`);
       res.status(500).json({
         message: "Error updating partner images in database",
+        success: false,
         error: error.message,
       });
     }
@@ -753,9 +857,10 @@ exports.deleteImage = async (req, res) => {
   const partnerId = req.partner.id; // Assume partner ID is available in req.partner
 
   if (!imageUrl || !partnerId) {
-    return res
-      .status(400)
-      .json({ message: "Image URL and Partner ID are required." });
+    return res.status(400).json({
+      message: "Image URL and Partner ID are required.",
+      success: false,
+    });
   }
 
   try {
@@ -765,7 +870,9 @@ exports.deleteImage = async (req, res) => {
     // Find the partner by ID and update their images array
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found." });
+      return res
+        .status(404)
+        .json({ message: "Partner not found.", success: false });
     }
 
     // Remove the image URL from the partner's images array
@@ -774,12 +881,14 @@ exports.deleteImage = async (req, res) => {
 
     res.status(200).json({
       message: "Image deleted successfully.",
+      success: true,
       partner: partner, // Return the updated partner data
     });
   } catch (error) {
     console.error(`Error deleting image: ${error.message}`);
     res.status(500).json({
       message: "Error deleting image from S3 or updating partner record.",
+      success: false,
       error: error.message,
     });
   }
@@ -801,7 +910,10 @@ exports.createCoupon = async (req, res) => {
 
     // Ensure the partner exists
     const partner = await Partner.findById(partnerId);
-    if (!partner) return res.status(404).json({ message: "Partner not found" });
+    if (!partner)
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
 
     // Check if all required fields are present
     if (
@@ -814,7 +926,9 @@ exports.createCoupon = async (req, res) => {
       !expiryDate ||
       isActive === undefined
     ) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res
+        .status(400)
+        .json({ message: "All fields are required", success: false });
     }
 
     // Create the coupon with a reference to the partner
@@ -836,13 +950,17 @@ exports.createCoupon = async (req, res) => {
     partner.coupons.push(newCoupon._id);
     await partner.save();
 
-    res
-      .status(201)
-      .json({ message: "Coupon created successfully", coupon: newCoupon });
+    res.status(201).json({
+      message: "Coupon created successfully",
+      coupon: newCoupon,
+      success: true,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error creating coupon", error: error.message });
+    res.status(500).json({
+      message: "Error creating coupon",
+      error: error.message,
+      success: false,
+    });
   }
 };
 
@@ -863,18 +981,28 @@ exports.updateCoupon = async (req, res) => {
 
     // Validate the couponId
     if (!couponId) {
-      return res.status(400).json({ message: "Coupon ID is required" });
+      return res
+        .status(400)
+        .json({ message: "Coupon ID is required", success: false });
     }
 
     // Validate the partnerId
     if (!partnerId) {
-      return res.status(400).json({ message: "Partner ID is required" });
+      return res
+        .status(400)
+        .json({ message: "Partner ID is required", success: false });
     }
 
     // Find the coupon and ensure it belongs to the partner
-    const coupon = await Coupon.findOne({ _id: couponId, partner: partnerId });
+    const coupon = await Coupon.findOne({
+      _id: couponId,
+      partner: partnerId,
+      success: false,
+    });
     if (!coupon) {
-      return res.status(404).json({ message: "Coupon not found" });
+      return res
+        .status(404)
+        .json({ message: "Coupon not found", success: false });
     }
 
     // Update the coupon fields if they are provided in the request body
@@ -891,32 +1019,37 @@ exports.updateCoupon = async (req, res) => {
     if (coupon.discountValue < 0) {
       return res
         .status(400)
-        .json({ message: "Discount value cannot be negative" });
+        .json({ message: "Discount value cannot be negative", success: false });
     }
     if (coupon.maxDiscount < 0) {
       return res
         .status(400)
-        .json({ message: "Max discount cannot be negative" });
+        .json({ message: "Max discount cannot be negative", success: false });
     }
     if (coupon.minOrderPrice < 0) {
-      return res
-        .status(400)
-        .json({ message: "Min order price cannot be negative" });
+      return res.status(400).json({
+        message: "Min order price cannot be negative",
+        success: false,
+      });
     }
     if (new Date(coupon.expiryDate) < new Date()) {
       return res
         .status(400)
-        .json({ message: "Expiry date cannot be in the past" });
+        .json({ message: "Expiry date cannot be in the past", success: false });
     }
 
     await coupon.save();
 
-    res.status(200).json({ message: "Coupon updated successfully", coupon });
+    res
+      .status(200)
+      .json({ message: "Coupon updated successfully", success: true, coupon });
   } catch (error) {
     console.error("Error updating coupon:", error);
-    res
-      .status(500)
-      .json({ message: "Error updating coupon", error: error.message });
+    res.status(500).json({
+      message: "Error updating coupon",
+      error: error.message,
+      success: false,
+    });
   }
 };
 
@@ -926,21 +1059,27 @@ exports.getCoupons = async (req, res) => {
 
     // Validate the partnerId
     if (!partnerId) {
-      return res.status(400).json({ message: "Partner ID is required" });
+      return res
+        .status(400)
+        .json({ message: "Partner ID is required", success: false });
     }
 
     // Find the partner and populate the coupons
     const partner = await Partner.findById(partnerId).populate("coupons");
     if (!partner) {
-      return res.status(404).json({ message: "Partner not found" });
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
     }
 
-    res.status(200).json({ coupons: partner.coupons });
+    res.status(200).json({ coupons: partner.coupons, success: true });
   } catch (error) {
     console.error("Error fetching coupons:", error);
-    res
-      .status(500)
-      .json({ message: "Error fetching coupons", error: error.message });
+    res.status(500).json({
+      message: "Error fetching coupons",
+      error: error.message,
+      success: false,
+    });
   }
 };
 
@@ -951,18 +1090,24 @@ exports.deleteCoupon = async (req, res) => {
 
     // Validate the couponId
     if (!couponId) {
-      return res.status(400).json({ message: "Coupon ID is required" });
+      return res
+        .status(400)
+        .json({ message: "Coupon ID is required", success: false });
     }
 
     // Validate the partnerId
     if (!partnerId) {
-      return res.status(400).json({ message: "Partner ID is required" });
+      return res
+        .status(400)
+        .json({ message: "Partner ID is required", success: false });
     }
 
     // Find the coupon and ensure it belongs to the partner
     const coupon = await Coupon.findOne({ _id: couponId, partner: partnerId });
     if (!coupon) {
-      return res.status(404).json({ message: "Coupon not found" });
+      return res
+        .status(404)
+        .json({ message: "Coupon not found", success: false });
     }
 
     // Delete the coupon
@@ -975,11 +1120,15 @@ exports.deleteCoupon = async (req, res) => {
     );
     await partner.save();
 
-    res.status(200).json({ message: "Coupon deleted successfully" });
+    res
+      .status(200)
+      .json({ message: "Coupon deleted successfully", success: true });
   } catch (error) {
     console.error("Error deleting coupon:", error);
-    res
-      .status(500)
-      .json({ message: "Error deleting coupon", error: error.message });
+    res.status(500).json({
+      message: "Error deleting coupon",
+      error: error.message,
+      success: false,
+    });
   }
 };

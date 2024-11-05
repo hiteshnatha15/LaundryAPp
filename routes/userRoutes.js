@@ -6,7 +6,8 @@ const {
   loginUser,
   verifyUserLogin,
   getUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  uploadUserImage
 } = require("../controllers/userController");
 const { userAuth } = require("../middlewares/userAuth");
 
@@ -19,5 +20,6 @@ router.post("/api/verifyUserLogin", verifyUserLogin);
 //protected route
 router.get("/api/user", userAuth, getUserProfile);
 router.put("/api/updateUser", userAuth, updateUserProfile);
+router.post("/api/uploadUserImage", userAuth, uploadUserImage);
 
 module.exports = router;

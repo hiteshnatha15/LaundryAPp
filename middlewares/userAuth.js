@@ -11,7 +11,7 @@ exports.userAuth = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
         .status(401)
-        .json({ message: "No token, authorization denied" });
+        .json({ message: "No token, authorization denied", success: false });
     }
 
     // Extract token from the header
@@ -25,13 +25,15 @@ exports.userAuth = async (req, res, next) => {
 
     // Check if user exists
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(404)
+        .json({ message: "User not found", success: false });
     }
 
     // Set user in the request object
     req.user = user;
     next();
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: "Server Error", success: false });
   }
 };
