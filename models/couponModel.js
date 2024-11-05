@@ -9,6 +9,7 @@ const CouponSchema = new mongoose.Schema({
   isFirstTimeUser: { type: Boolean, default: false }, // Whether the coupon is only for first-time users
   expiryDate: { type: Date }, // Expiry date of the coupon (optional)
   isActive: { type: Boolean, default: true }, // Whether the coupon is currently active
+  partner: { type: mongoose.Schema.Types.ObjectId, ref: "Partner" }, // Partner who created the coupon
 }, {
   timestamps: true // Automatically add createdAt and updatedAt timestamps
 });

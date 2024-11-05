@@ -14,6 +14,13 @@ const {
   addOrUpdatePartnerBankDetails,
   addServicesAndLocation,
   updateServicesAndLocation,
+  uploadPartnerLogo,
+  uploadImages,
+  deleteImage,
+  createCoupon,
+  updateCoupon,
+  getCoupons,
+  deleteCoupon,
 } = require("../controllers/partnerController");
 const { partnerAuth } = require("../middlewares/partnerAuth");
 
@@ -36,6 +43,17 @@ router.post(
   addOrUpdatePartnerBankDetails
 ); // Add bank details of partner
 router.post("/api/addServicesAndLocation", partnerAuth, addServicesAndLocation);
-router.put("/api/updateServicesAndLocation", partnerAuth, updateServicesAndLocation);
+router.put(
+  "/api/updateServicesAndLocation",
+  partnerAuth,
+  updateServicesAndLocation
+);
+router.post("/api/upload-partner-logo", partnerAuth, uploadPartnerLogo);
+router.post("/api/upload-partner-images", partnerAuth, uploadImages);
+router.post("/api/delete-partner-images", partnerAuth, deleteImage);
+router.post("/api/create-coupon", partnerAuth, createCoupon);
+router.put("/api/update-coupon/:couponId", partnerAuth, updateCoupon);
+router.get("/api/get-coupons", partnerAuth, getCoupons);
+router.delete("/api/delete-coupon/:couponId", partnerAuth, deleteCoupon);
 
 module.exports = router;

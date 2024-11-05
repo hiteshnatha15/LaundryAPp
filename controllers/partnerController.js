@@ -4,6 +4,9 @@ const generateOtp = require("../utils/generateOtp");
 const otpService = require("../services/otpService");
 const mailOtpService = require("../services/mailOtpService");
 const jwt = require("jsonwebtoken");
+const createUpload = require("../services/uploadImageService");
+const { deleteImageFromS3 } = require("../services/deleteImageService");
+const Coupon = require("../models/couponModel");
 
 exports.createPartner = async (req, res) => {
   const { name, email, mobile } = req.body;
@@ -285,6 +288,8 @@ exports.getPartnerProfile = async (req, res) => {
         deliveryServices: partner.deliveryServices,
         hours: partner.hours,
         location: partner.location,
+        logo: partner.logo,
+        images: partner.images,
       },
     });
   } catch (error) {
@@ -551,13 +556,24 @@ exports.addOrUpdatePartnerBankDetails = async (req, res) => {
   }
 };
 
-
 exports.addServicesAndLocation = async (req, res) => {
-  const { laundryName, expressService, deliveryService, operationHours, location } = req.body;
+  const {
+    laundryName,
+    expressService,
+    deliveryService,
+    operationHours,
+    location,
+  } = req.body;
   const partnerId = req.partner.id;
 
   // Check if all fields are present
-  if (!laundryName || !expressService || !deliveryService || !operationHours || !location) {
+  if (
+    !laundryName ||
+    !expressService ||
+    !deliveryService ||
+    !operationHours ||
+    !location
+  ) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -599,7 +615,13 @@ exports.addServicesAndLocation = async (req, res) => {
 };
 
 exports.updateServicesAndLocation = async (req, res) => {
-  const { laundryName, expressService, deliveryService, operationHours, location } = req.body;
+  const {
+    laundryName,
+    expressService,
+    deliveryService,
+    operationHours,
+    location,
+  } = req.body;
   const partnerId = req.partner.id;
 
   try {
@@ -637,5 +659,327 @@ exports.updateServicesAndLocation = async (req, res) => {
   } catch (error) {
     console.error("Error updating services and location:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.uploadPartnerLogo = (req, res) => {
+  // Specify the folder name (e.g., 'partners')
+  const uploadSingle = createUpload("partners").single("image"); // Create the upload middleware
+
+  uploadSingle(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded!" });
+    }
+
+    try {
+      // Find the existing partner by ID or name
+      const partnerId = req.partner.id; // Get partnerId from the request body
+      const partner = await Partner.findById(partnerId); // Fetch the partner from the database
+
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found!" });
+      }
+
+      // Check if the partner has an existing logo and delete it from S3
+      if (partner.logo) {
+        console.log("Deleting existing logo from S3...", partner.logo);
+        await deleteImageFromS3(partner.logo); // Call the delete service
+      }
+
+      // Update the logoUrl field with the new image URL
+      partner.logo = req.file.location; // Store the new logo URL
+      await partner.save(); // Save the updated partner document
+
+      // Successful upload response
+      res.status(200).json({
+        message: "File uploaded and partner logo updated successfully!",
+        partner: partner, // Return the updated partner data
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Error updating partner logo in database",
+        error: error.message,
+      });
+    }
+  });
+};
+
+exports.uploadImages = (req, res) => {
+  const uploadMultipleImages = createUpload("partners").array("image", 10); // Adjust the field name as needed
+  uploadMultipleImages(req, res, async (err) => {
+    if (err) {
+      console.error(`Upload error: ${err.message}`);
+      return res
+        .status(400)
+        .json({ message: `File upload error: ${err.message}` });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No image files uploaded!" });
+    }
+
+    try {
+      const partnerId = req.partner.id; // Assume partner ID is available in req.partner
+      const partner = await Partner.findById(partnerId);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found!" });
+      }
+
+      // Update the images array with the new image URLs
+      const imageUrls = req.files.map((file) => file.location); // Get the S3 URLs from the uploaded files
+      partner.images = [...partner.images, ...imageUrls]; // Append new images to existing images
+      await partner.save(); // Save the updated partner document
+
+      // Successful upload response
+      res.status(200).json({
+        message: "Images uploaded successfully!",
+        partner: partner, // Return the updated partner data
+      });
+    } catch (error) {
+      console.error(`Error updating partner images: ${error.message}`);
+      res.status(500).json({
+        message: "Error updating partner images in database",
+        error: error.message,
+      });
+    }
+  });
+};
+
+exports.deleteImage = async (req, res) => {
+  const { imageUrl } = req.body; // Get the image URL from the request body
+  const partnerId = req.partner.id; // Assume partner ID is available in req.partner
+
+  if (!imageUrl || !partnerId) {
+    return res
+      .status(400)
+      .json({ message: "Image URL and Partner ID are required." });
+  }
+
+  try {
+    // Call the function to delete the image from S3
+    await deleteImageFromS3(imageUrl);
+
+    // Find the partner by ID and update their images array
+    const partner = await Partner.findById(partnerId);
+    if (!partner) {
+      return res.status(404).json({ message: "Partner not found." });
+    }
+
+    // Remove the image URL from the partner's images array
+    partner.images = partner.images.filter((img) => img !== imageUrl);
+    await partner.save(); // Save the updated partner document
+
+    res.status(200).json({
+      message: "Image deleted successfully.",
+      partner: partner, // Return the updated partner data
+    });
+  } catch (error) {
+    console.error(`Error deleting image: ${error.message}`);
+    res.status(500).json({
+      message: "Error deleting image from S3 or updating partner record.",
+      error: error.message,
+    });
+  }
+};
+
+exports.createCoupon = async (req, res) => {
+  try {
+    const partnerId = req.partner.id;
+    const {
+      code,
+      discountType,
+      discountValue,
+      maxDiscount,
+      minOrderPrice,
+      isFirstTimeUser,
+      expiryDate,
+      isActive,
+    } = req.body;
+
+    // Ensure the partner exists
+    const partner = await Partner.findById(partnerId);
+    if (!partner) return res.status(404).json({ message: "Partner not found" });
+
+    // Check if all required fields are present
+    if (
+      !code ||
+      !discountType ||
+      !discountValue ||
+      !maxDiscount ||
+      !minOrderPrice ||
+      isFirstTimeUser === undefined ||
+      !expiryDate ||
+      isActive === undefined
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Create the coupon with a reference to the partner
+    const newCoupon = new Coupon({
+      code,
+      discountType,
+      discountValue,
+      maxDiscount,
+      minOrderPrice,
+      isFirstTimeUser,
+      expiryDate,
+      isActive,
+      partner: partnerId,
+    });
+
+    await newCoupon.save();
+
+    // Add the coupon to the partner's coupons array
+    partner.coupons.push(newCoupon._id);
+    await partner.save();
+
+    res
+      .status(201)
+      .json({ message: "Coupon created successfully", coupon: newCoupon });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error creating coupon", error: error.message });
+  }
+};
+
+exports.updateCoupon = async (req, res) => {
+  try {
+    const { couponId } = req.params;
+    const partnerId = req.partner.id;
+    const {
+      code,
+      discountType,
+      discountValue,
+      maxDiscount,
+      minOrderPrice,
+      isFirstTimeUser,
+      expiryDate,
+      isActive,
+    } = req.body;
+
+    // Validate the couponId
+    if (!couponId) {
+      return res.status(400).json({ message: "Coupon ID is required" });
+    }
+
+    // Validate the partnerId
+    if (!partnerId) {
+      return res.status(400).json({ message: "Partner ID is required" });
+    }
+
+    // Find the coupon and ensure it belongs to the partner
+    const coupon = await Coupon.findOne({ _id: couponId, partner: partnerId });
+    if (!coupon) {
+      return res.status(404).json({ message: "Coupon not found" });
+    }
+
+    // Update the coupon fields if they are provided in the request body
+    if (code !== undefined) coupon.code = code;
+    if (discountType !== undefined) coupon.discountType = discountType;
+    if (discountValue !== undefined) coupon.discountValue = discountValue;
+    if (maxDiscount !== undefined) coupon.maxDiscount = maxDiscount;
+    if (minOrderPrice !== undefined) coupon.minOrderPrice = minOrderPrice;
+    if (isFirstTimeUser !== undefined) coupon.isFirstTimeUser = isFirstTimeUser;
+    if (expiryDate !== undefined) coupon.expiryDate = expiryDate;
+    if (isActive !== undefined) coupon.isActive = isActive;
+
+    // Validate the updated coupon fields
+    if (coupon.discountValue < 0) {
+      return res
+        .status(400)
+        .json({ message: "Discount value cannot be negative" });
+    }
+    if (coupon.maxDiscount < 0) {
+      return res
+        .status(400)
+        .json({ message: "Max discount cannot be negative" });
+    }
+    if (coupon.minOrderPrice < 0) {
+      return res
+        .status(400)
+        .json({ message: "Min order price cannot be negative" });
+    }
+    if (new Date(coupon.expiryDate) < new Date()) {
+      return res
+        .status(400)
+        .json({ message: "Expiry date cannot be in the past" });
+    }
+
+    await coupon.save();
+
+    res.status(200).json({ message: "Coupon updated successfully", coupon });
+  } catch (error) {
+    console.error("Error updating coupon:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating coupon", error: error.message });
+  }
+};
+
+exports.getCoupons = async (req, res) => {
+  try {
+    const partnerId = req.partner.id;
+
+    // Validate the partnerId
+    if (!partnerId) {
+      return res.status(400).json({ message: "Partner ID is required" });
+    }
+
+    // Find the partner and populate the coupons
+    const partner = await Partner.findById(partnerId).populate("coupons");
+    if (!partner) {
+      return res.status(404).json({ message: "Partner not found" });
+    }
+
+    res.status(200).json({ coupons: partner.coupons });
+  } catch (error) {
+    console.error("Error fetching coupons:", error);
+    res
+      .status(500)
+      .json({ message: "Error fetching coupons", error: error.message });
+  }
+};
+
+exports.deleteCoupon = async (req, res) => {
+  try {
+    const { couponId } = req.params;
+    const partnerId = req.partner.id;
+
+    // Validate the couponId
+    if (!couponId) {
+      return res.status(400).json({ message: "Coupon ID is required" });
+    }
+
+    // Validate the partnerId
+    if (!partnerId) {
+      return res.status(400).json({ message: "Partner ID is required" });
+    }
+
+    // Find the coupon and ensure it belongs to the partner
+    const coupon = await Coupon.findOne({ _id: couponId, partner: partnerId });
+    if (!coupon) {
+      return res.status(404).json({ message: "Coupon not found" });
+    }
+
+    // Delete the coupon
+    await Coupon.deleteOne({ _id: couponId });
+
+    // Remove the coupon from the partner's coupons array
+    const partner = await Partner.findById(partnerId);
+    partner.coupons = partner.coupons.filter(
+      (id) => id.toString() !== couponId
+    );
+    await partner.save();
+
+    res.status(200).json({ message: "Coupon deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting coupon:", error);
+    res
+      .status(500)
+      .json({ message: "Error deleting coupon", error: error.message });
   }
 };

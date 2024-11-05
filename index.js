@@ -4,7 +4,6 @@ const connectDB = require("./configs/db");
 const cors = require("cors");
 const userRoutes = require("./routes/userRoutes");
 const partnerRoutes = require("./routes/partnerRoutes");
-const s3 = require("./configs/awsS3");
 require("dotenv").config();
 
 connectDB();
