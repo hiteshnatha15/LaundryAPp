@@ -2,6 +2,7 @@
 const { S3 } = require('@aws-sdk/client-s3');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
+require('dotenv').config();
 
 // Create an S3 instance
 const s3 = new S3({
