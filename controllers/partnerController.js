@@ -331,7 +331,10 @@ exports.getPartnerProfile = async (req, res) => {
         hours: partner.hours,
         location: partner.location,
         logo: partner.logo,
-        images: partner.images,
+        image1: partner.image1,
+        image2: partner.image2,
+        image3: partner.image3,
+        image4: partner.image4,
       },
       success: true,
     });
@@ -661,12 +664,11 @@ exports.addServicesAndLocation = async (req, res) => {
 
   // Check if operationHours has the correct number of entries (7 days)
   if (!Array.isArray(operationHours) || operationHours.length !== 7) {
-    return res
-      .status(400)
-      .json({
-        message: "Operation hours should be an array with 7 entries (one for each day)",
-        success: false,
-      });
+    return res.status(400).json({
+      message:
+        "Operation hours should be an array with 7 entries (one for each day)",
+      success: false,
+    });
   }
 
   try {
@@ -841,23 +843,26 @@ exports.uploadPartnerLogo = (req, res) => {
 };
 
 exports.uploadImages = (req, res) => {
-  const uploadMultipleImages = createUpload("partners").array("image", 10); // Adjust the field name as needed
-  uploadMultipleImages(req, res, async (err) => {
+  const uploadMultiple = createUpload("partners").fields([
+    { name: "image1", maxCount: 1 },
+    { name: "image2", maxCount: 1 },
+    { name: "image3", maxCount: 1 },
+    { name: "image4", maxCount: 1 },
+  ]);
+
+  uploadMultiple(req, res, async (err) => {
     if (err) {
-      console.error(`Upload error: ${err.message}`);
-      return res
-        .status(400)
-        .json({ message: `File upload error: ${err.message}`, success: false });
+      return res.status(400).json({ message: err.message, success: false });
     }
 
-    if (!req.files || req.files.length === 0) {
+    if (!req.files || Object.keys(req.files).length === 0) {
       return res
         .status(400)
-        .json({ message: "No image files uploaded!", success: false });
+        .json({ message: "No files uploaded!", success: false });
     }
 
     try {
-      const partnerId = req.partner.id; // Assume partner ID is available in req.partner
+      const partnerId = req.partner.id;
       const partner = await Partner.findById(partnerId);
       if (!partner) {
         return res
@@ -865,16 +870,40 @@ exports.uploadImages = (req, res) => {
           .json({ message: "Partner not found!", success: false });
       }
 
-      // Update the images array with the new image URLs
-      const imageUrls = req.files.map((file) => file.location); // Get the S3 URLs from the uploaded files
-      partner.images = [...partner.images, ...imageUrls]; // Append new images to existing images
-      await partner.save(); // Save the updated partner document
+      // Check and delete existing images from S3
+      if (req.files.image1 && partner.image1) {
+        await deleteImageFromS3(partner.image1);
+      }
+      if (req.files.image2 && partner.image2) {
+        await deleteImageFromS3(partner.image2);
+      }
+      if (req.files.image3 && partner.image3) {
+        await deleteImageFromS3(partner.image3);
+      }
+      if (req.files.image4 && partner.image4) {
+        await deleteImageFromS3(partner.image4);
+      }
 
-      // Successful upload response
+      // Update the images with the new image URLs
+      partner.image1 = req.files.image1
+        ? req.files.image1[0].location
+        : partner.image1;
+      partner.image2 = req.files.image2
+        ? req.files.image2[0].location
+        : partner.image2;
+      partner.image3 = req.files.image3
+        ? req.files.image3[0].location
+        : partner.image3;
+      partner.image4 = req.files.image4
+        ? req.files.image4[0].location
+        : partner.image4;
+
+      await partner.save();
+
       res.status(200).json({
         message: "Images uploaded successfully!",
         success: true,
-        partner: partner, // Return the updated partner data
+        partner: partner,
       });
     } catch (error) {
       console.error(`Error updating partner images: ${error.message}`);

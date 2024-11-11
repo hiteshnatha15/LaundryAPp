@@ -75,7 +75,10 @@ const PartnerSchema = new mongoose.Schema({
   }, // Payment details
 
   logo: String, // URL or path to the logo image
-  images: [String], // Array of URLs or paths to images
+  image1: String, // URL or path to the first image
+  image2: String, // URL or path to the second image
+  image3: String, // URL or path to the third image
+  image4: String, // URL or path to the fourth image
   coupons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Coupon' }], // Array of coupon IDs
 });
 
