@@ -11,8 +11,7 @@ const s3 = new S3({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
-});
-
+})
 // Function to create multer upload instance with dynamic folder and filename
 const createUpload = (folder) => {
   return multer({

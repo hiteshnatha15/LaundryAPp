@@ -649,14 +649,24 @@ exports.addServicesAndLocation = async (req, res) => {
   // Check if all fields are present
   if (
     !laundryName ||
-    !expressService ||
-    !deliveryService ||
+    expressService === undefined ||
+    deliveryService === undefined ||
     !operationHours ||
     !location
   ) {
     return res
       .status(400)
       .json({ message: "All fields are required", success: false });
+  }
+
+  // Check if operationHours has the correct number of entries (7 days)
+  if (!Array.isArray(operationHours) || operationHours.length !== 7) {
+    return res
+      .status(400)
+      .json({
+        message: "Operation hours should be an array with 7 entries (one for each day)",
+        success: false,
+      });
   }
 
   try {
@@ -670,14 +680,39 @@ exports.addServicesAndLocation = async (req, res) => {
     partner.laundryName = laundryName;
     partner.expressServices = expressService;
     partner.deliveryServices = deliveryService;
+
+    // Map operation hours to each day of the week
     partner.hours = {
-      monday: operationHours.monday,
-      tuesday: operationHours.tuesday,
-      wednesday: operationHours.wednesday,
-      thursday: operationHours.thursday,
-      friday: operationHours.friday,
-      saturday: operationHours.saturday,
+      monday: {
+        openingTime: operationHours[0].openingTime,
+        closingTime: operationHours[0].closingTime,
+      },
+      tuesday: {
+        openingTime: operationHours[1].openingTime,
+        closingTime: operationHours[1].closingTime,
+      },
+      wednesday: {
+        openingTime: operationHours[2].openingTime,
+        closingTime: operationHours[2].closingTime,
+      },
+      thursday: {
+        openingTime: operationHours[3].openingTime,
+        closingTime: operationHours[3].closingTime,
+      },
+      friday: {
+        openingTime: operationHours[4].openingTime,
+        closingTime: operationHours[4].closingTime,
+      },
+      saturday: {
+        openingTime: operationHours[5].openingTime,
+        closingTime: operationHours[5].closingTime,
+      },
+      sunday: {
+        openingTime: operationHours[6].openingTime,
+        closingTime: operationHours[6].closingTime,
+      },
     };
+
     partner.location = {
       latitude: location.latitude,
       longitude: location.longitude,
