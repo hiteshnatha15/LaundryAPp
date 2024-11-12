@@ -649,7 +649,7 @@ exports.addServicesAndLocation = async (req, res) => {
   } = req.body;
   const partnerId = req.partner.id;
 
-  // Check if all fields are present
+  // Check if essential fields are present
   if (
     !laundryName ||
     expressService === undefined ||
@@ -660,15 +660,6 @@ exports.addServicesAndLocation = async (req, res) => {
     return res
       .status(400)
       .json({ message: "All fields are required", success: false });
-  }
-
-  // Check if operationHours has the correct number of entries (7 days)
-  if (!Array.isArray(operationHours) || operationHours.length !== 7) {
-    return res.status(400).json({
-      message:
-        "Operation hours should be an array with 7 entries (one for each day)",
-      success: false,
-    });
   }
 
   try {
@@ -683,37 +674,14 @@ exports.addServicesAndLocation = async (req, res) => {
     partner.expressServices = expressService;
     partner.deliveryServices = deliveryService;
 
-    // Map operation hours to each day of the week
-    partner.hours = {
-      monday: {
-        openingTime: operationHours[0].openingTime,
-        closingTime: operationHours[0].closingTime,
-      },
-      tuesday: {
-        openingTime: operationHours[1].openingTime,
-        closingTime: operationHours[1].closingTime,
-      },
-      wednesday: {
-        openingTime: operationHours[2].openingTime,
-        closingTime: operationHours[2].closingTime,
-      },
-      thursday: {
-        openingTime: operationHours[3].openingTime,
-        closingTime: operationHours[3].closingTime,
-      },
-      friday: {
-        openingTime: operationHours[4].openingTime,
-        closingTime: operationHours[4].closingTime,
-      },
-      saturday: {
-        openingTime: operationHours[5].openingTime,
-        closingTime: operationHours[5].closingTime,
-      },
-      sunday: {
-        openingTime: operationHours[6].openingTime,
-        closingTime: operationHours[6].closingTime,
-      },
-    };
+    // Map provided operation hours to days in `partner.hours`
+    partner.hours = {};
+    operationHours.forEach((dayInfo) => {
+      const { day, openingTime, closingTime } = dayInfo;
+      if (day && openingTime && closingTime) {
+        partner.hours[day.toLowerCase()] = { openingTime, closingTime };
+      }
+    });
 
     partner.location = {
       latitude: location.latitude,
@@ -1195,4 +1163,56 @@ exports.deleteCoupon = async (req, res) => {
       success: false,
     });
   }
+};
+
+exports.uploadPartnerImage = (req, res) => {
+  const uploadSingleImage = createUpload("partners").single("image"); // Adjust the folder name to "partners"
+  uploadSingleImage(req, res, async (err) => {
+    if (err) {
+      console.error(`Upload error: ${err.message}`);
+      return res
+        .status(400)
+        .json({ message: `File upload error: ${err.message}`, success: false });
+    }
+
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ message: "No image file uploaded!", success: false });
+    }
+
+    try {
+      const partnerId = req.partner.id; // Assume partner ID is available in req.partner
+      const partner = await Partner.findById(partnerId);
+      if (!partner) {
+        return res
+          .status(404)
+          .json({ message: "Partner not found!", success: false });
+      }
+
+      // Delete the existing image from S3 if it exists
+      if (partner.profileImage) {
+        await deleteImageFromS3(partner.profileImage);
+      }
+
+      // Update the image URL
+      const imageUrl = req.file.location; // Get the S3 URL from the uploaded file
+      partner.profileImage = imageUrl; // Save the new image URL
+      await partner.save(); // Save the updated partner document
+
+      // Successful upload response
+      res.status(200).json({
+        message: "Image uploaded successfully!",
+        partner: partner, // Return the updated partner data
+        success: true,
+      });
+    } catch (error) {
+      console.error(`Error updating partner image: ${error.message}`);
+      res.status(500).json({
+        message: "Error updating partner image in database",
+        error: error.message,
+        success: false,
+      });
+    }
+  });
 };

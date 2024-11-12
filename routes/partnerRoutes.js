@@ -21,6 +21,7 @@ const {
   updateCoupon,
   getCoupons,
   deleteCoupon,
+  uploadPartnerImage,
 } = require("../controllers/partnerController");
 const { partnerAuth } = require("../middlewares/partnerAuth");
 
@@ -55,5 +56,6 @@ router.post("/api/create-coupon", partnerAuth, createCoupon);
 router.put("/api/update-coupon/:couponId", partnerAuth, updateCoupon);
 router.get("/api/get-coupons", partnerAuth, getCoupons);
 router.delete("/api/delete-coupon/:couponId", partnerAuth, deleteCoupon);
+router.post("/api/upload-partner-image", partnerAuth, uploadPartnerImage);
 
 module.exports = router;
