@@ -6,6 +6,9 @@ const mailOtpService = require("../services/mailOtpService");
 const jwt = require("jsonwebtoken");
 const createUpload = require("../services/uploadImageService");
 const { deleteImageFromS3 } = require("../services/deleteImageService");
+const Partners = require("../models/partnerModel");
+const Orders = require("../models/orderModel");
+const { v4: uuidv4 } = require("uuid"); // For generating unique order IDs
 
 exports.createUser = async (req, res) => {
   const { name, email, mobile } = req.body;
@@ -471,3 +474,59 @@ exports.deleteUserImage = async (req, res) => {
     });
   }
 };
+
+exports.getAllPartnerDetails = async (req, res) => {
+  try {
+    const partners = await Partners.find().select("-otp -otpExpiry -__v");
+    if (!partners || partners.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No partners found", success: false });
+    }
+
+    return res.status(200).json({
+      message: "Partner details fetched successfully",
+      success: true,
+      partners,
+    });
+  } catch (error) {
+    console.error("Error fetching partner details:", error);
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
+  }
+};
+
+exports.getPartnerDetailsById = async (req, res) => {
+  const { partnerId } = req.params;
+
+  if (!partnerId) {
+    return res
+      .status(400)
+      .json({ message: "Partner ID is required", success: false });
+  }
+
+  try {
+    const partner = await Partners.findById(partnerId).select(
+      "-otp -otpExpiry -__v"
+    );
+
+    if (!partner) {
+      return res
+        .status(404)
+        .json({ message: "Partner not found", success: false });
+    }
+
+    return res.status(200).json({
+      message: "Partner details fetched successfully",
+      success: true,
+      partner,
+    });
+  } catch (error) {
+    console.error("Error fetching partner details:", error);
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
+  }
+};
+

@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const createUpload = require("../services/uploadImageService");
 const { deleteImageFromS3 } = require("../services/deleteImageService");
 const Coupon = require("../models/couponModel");
+const CategoryTemplate = require("../models/categoryTemplateModel");
 
 exports.createPartner = async (req, res) => {
   const { name, email, mobile } = req.body;
@@ -389,35 +390,48 @@ exports.updatePartnerProfile = async (req, res) => {
       .json({ message: "Server error", error: error.message, success: false });
   }
 };
-// Add a new category
-exports.addCategory = async (req, res) => {
-  const { category } = req.body; // Category should include name and subcategories
-  const partnerId = req.partner.id; // Middleware sets req.partnerId
 
+exports.addCategory = async (req, res) => {
   try {
+    const { categories } = req.body;
+
+    // Extract partnerId from the middleware (assumed to attach it to req.partnerId)
+    const partnerId = req.partner.id;
+
+    if (!partnerId) {
+      return res
+        .status(400)
+        .json({ message: "Partner ID is missing in the request." });
+    }
+
+    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Categories array is required and cannot be empty." });
+    }
+
+    // Find the partner
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res
-        .status(404)
-        .json({ message: "Partner not found", success: false });
+      return res.status(404).json({ message: "Partner not found." });
     }
 
-    // Check for duplicate category name
-    const duplicateCategory = partner.categories.find(
-      (cat) => cat.name === category.name
-    );
-    if (duplicateCategory) {
-      return res.status(400).json({
-        message: "Category with this name already exists",
-        success: false,
-      });
-    }
+    // Add the categories to the partner's categories
+    partner.categories.push(...categories);
 
-    partner.categories.push(category); // Add new category to the partner's categories array
+    // Save the updated partner
     await partner.save();
-    res.status(201).json({ categories: partner.categories, success: true });
+
+    res.status(200).json({
+      message: "Categories added successfully.",
+      categories: partner.categories,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message, success: false });
+    console.error(error);
+    res.status(500).json({
+      message: "An error occurred while adding the categories.",
+      error,
+    });
   }
 };
 
@@ -440,18 +454,17 @@ exports.getCategories = async (req, res) => {
 
 exports.updateCategory = async (req, res) => {
   const { categoryId } = req.params; // Category ID from params
-  const partnerId = req.partner.id; // Middleware sets req.partnerId
+  const partnerId = req.partner.id; // Partner ID from middleware
+  const { category: updatedCategoryData } = req.body; // The updated category data
 
-  // Ensure category exists in the request body
-  const { category: newCategoryData } = req.body;
-
-  if (!newCategoryData) {
+  if (!updatedCategoryData) {
     return res
       .status(400)
       .json({ message: "Category data is required", success: false });
   }
 
   try {
+    // Find the partner
     const partner = await Partner.findById(partnerId);
     if (!partner) {
       return res
@@ -459,7 +472,7 @@ exports.updateCategory = async (req, res) => {
         .json({ message: "Partner not found", success: false });
     }
 
-    // Find the index of the category
+    // Find the category to be updated
     const categoryIndex = partner.categories.findIndex(
       (cat) => cat._id.toString() === categoryId
     );
@@ -470,18 +483,69 @@ exports.updateCategory = async (req, res) => {
     }
 
     // Update the category data
-    partner.categories[categoryIndex] = {
-      ...partner.categories[categoryIndex]._doc, // Keep the existing category structure
-      ...newCategoryData, // Merge with new category data
+    const updatedCategory = {
+      ...partner.categories[categoryIndex]._doc, // Preserve the existing category structure
+      ...updatedCategoryData, // Merge the new category data
     };
+
+    // Update subcategories and items if provided
+    if (updatedCategoryData.subcategories) {
+      updatedCategory.subcategories = updatedCategoryData.subcategories.map(
+        (newSubcategory) => {
+          const existingSubcategory = partner.categories[
+            categoryIndex
+          ].subcategories.find(
+            (sub) => sub._id.toString() === newSubcategory._id.toString()
+          );
+          if (existingSubcategory) {
+            return {
+              ...existingSubcategory,
+              ...newSubcategory,
+              items: newSubcategory.items
+                ? newSubcategory.items.map((newItem) => {
+                    const existingItem = existingSubcategory.items.find(
+                      (item) => item._id.toString() === newItem._id.toString()
+                    );
+                    if (existingItem) {
+                      return {
+                        ...existingItem,
+                        ...newItem,
+                        methods: newItem.methods
+                          ? newItem.methods.map((newMethod) => {
+                              const existingMethod = existingItem.methods.find(
+                                (method) =>
+                                  method._id.toString() ===
+                                  newMethod._id.toString()
+                              );
+                              if (existingMethod) {
+                                return { ...existingMethod, ...newMethod }; // Update method
+                              }
+                              return newMethod;
+                            })
+                          : existingItem.methods,
+                      };
+                    }
+                    return newItem;
+                  })
+                : existingSubcategory.items,
+            };
+          }
+          return newSubcategory;
+        }
+      );
+    }
+
+    // Replace the old category with the updated category
+    partner.categories[categoryIndex] = updatedCategory;
 
     // Save the updated partner document
     await partner.save();
 
     // Return the updated category
-    res
-      .status(200)
-      .json({ category: partner.categories[categoryIndex], success: true });
+    res.status(200).json({
+      category: updatedCategory,
+      success: true,
+    });
   } catch (error) {
     console.error("Error updating category: ", error.message);
     res.status(500).json({ error: error.message, success: false });
@@ -1215,4 +1279,14 @@ exports.uploadPartnerImage = (req, res) => {
       });
     }
   });
+};
+
+exports.getCategoryTemplates = async (req, res) => {
+  try {
+    const categoryTemplates = await CategoryTemplate.find();
+    res.status(200).json({ categoryTemplates });
+  } catch (error) {
+    console.error("Error fetching category templates:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };

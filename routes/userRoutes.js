@@ -7,7 +7,9 @@ const {
   verifyUserLogin,
   getUserProfile,
   updateUserProfile,
-  uploadUserImage
+  uploadUserImage,
+  getAllPartnerDetails,
+  getPartnerDetailsById
 } = require("../controllers/userController");
 const { userAuth } = require("../middlewares/userAuth");
 
@@ -21,5 +23,7 @@ router.post("/api/verifyUserLogin", verifyUserLogin);
 router.get("/api/user", userAuth, getUserProfile);
 router.put("/api/updateUser", userAuth, updateUserProfile);
 router.post("/api/uploadUserImage", userAuth, uploadUserImage);
+router.get("/api/getAllPartners", userAuth, getAllPartnerDetails);
+router.get('/api/getAllPartnersById/:partnerId', userAuth, getPartnerDetailsById);
 
 module.exports = router;

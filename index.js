@@ -5,10 +5,12 @@ const cors = require("cors");
 const userRoutes = require("./routes/userRoutes");
 const partnerRoutes = require("./routes/partnerRoutes");
 const deliveryRoutes = require("./routes/deliveryRoutes");
+const bodyParser = require("body-parser");
 require("dotenv").config();
 
 connectDB();
 app.use(express.json());
+app.use(bodyParser.json());
 app.use(cors());
 app.use(userRoutes);
 app.use(partnerRoutes);
